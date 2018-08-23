@@ -79,15 +79,35 @@ class OBPressureHandler(DataHandler):
 class LastTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument):
         super().__init__(start_time, end_time, instrument)
-        self.last_ob = None
+        self.last_obs = dict()
+        self.new_obs = dict()
+
+    def __call__(self, time, ob, df):
+        if time == self.start_time and not self.recorded:
+            self._Compute(ob)
+        elif time == self.end_time:
+            self._Compute(ob)
+            self._Record(ob, df)
 
     def _Compute(self, ob):
-        self.last_ob = ob
+
+        if ob != self.new_ob:
+            print('tttttttttttttttttttt')
+            self.last_ob = self.new_ob
+            self.new_ob = ob
 
     def _Record(self, ob, df):
+        print(self.last_ob)
+        print(self.new_ob)
+        if self.last_ob is None or self.new_ob is None:
+            print(self.last_ob['1303'])
+            print(self.new_ob['1330'])
+            print('ffffffffffffffffffff')
+            return
+
         if self.instrument == 'all':
-            for key, value in ob.items():
-                vol = value['2']
+            for key, value in self.new_ob.items():
+                vol = eval(value['2'])
                 if value['9'] == self.last_ob[key]['9'] and value['19'] != self.last_ob[key]['19']:
                     df.loc[key, 'lastvol'] = vol
                 elif value['9'] != self.last_ob[key]['9'] and value['19'] == self.last_ob[key]['19']:
@@ -95,8 +115,10 @@ class LastTickHandler(DataHandler):
                 else:
                     df.loc[key, 'lastvol'] = 0
         else:
-            instrument_dict = ob[self.instrument]
-            vol = instrument_dict['2']
+            instrument_dict = self.new_ob[self.instrument]
+            print(instrument_dict)
+            print(self.last_ob['1303'])
+            vol = eval(instrument_dict['2'])
             if instrument_dict['9'] == self.last_ob[self.instrument]['9'] and \
                     instrument_dict['19'] != self.last_ob[self.instrument]['19']:
                 df.loc[self.instrument, 'lastvol'] = vol
