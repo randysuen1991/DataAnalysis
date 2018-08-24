@@ -143,18 +143,29 @@ class LastTickHandler(DataHandler):
 class CumulativeTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument):
         super().__init__(start_time, end_time, instrument)
+        self.obs = dict()
+        self.bid_num = 0
+        self.ask_num = 0
+        self.bid_amount = 0
+        self.ask_amount = 0
 
     def __call__(self, time, ob, df):
         if time == self.start_time and not self.recorded:
             self.recorded = True
+            if self.instrument == 'all':
+                for key, value in ob.items():
+                    self.obs[key] = copy.copy(value)
+            else:
+                instrument_dict = ob[self.instrument]
+                self.obs[self.instrument] = copy.copy(instrument_dict)
         elif time == self.start_time and self.recorded:
-            pass
+            self._Compute()
         elif time == self.end_time:
             self._Record(ob, df)
 
     def _Compute(self, ob):
         if self.instrument == 'all':
-            for key, value in self.new_obs.items():
+            for key, value in self.obs.items():
                 if value != ob[key]:
                     self.last_obs[key] = copy.copy(self.new_obs[key])
                     self.new_obs[key] = copy.copy(ob[key])
