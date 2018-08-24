@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-
+import copy
 
 # These handlers handle the socket data from MasterLink server.
 class DataHandler:
@@ -95,19 +95,21 @@ class LastTickHandler(DataHandler):
             self._Record(ob, df)
 
     def _Compute(self, ob):
-
-        if ob != self.new_ob:
-            print('tttttttttttttttttttt')
-            self.last_ob = self.new_ob
-            self.new_ob = ob
-
+        if self.instrument == 'all':
+            for key, value in self.new_
+                if value != self.new_ob:
+                    print('tttttttttttttttttttt')
+                    self.last_ob = copy.copy(self.new_ob)
+                    self.new_ob = copy.copy(ob)
+        else:
+            
     def _Record(self, ob, df):
-        print(self.last_ob)
-        print(self.new_ob)
+        # print(self.last_ob)
+        # print(self.new_ob)
         if self.last_ob is None or self.new_ob is None:
-            print(self.last_ob['1303'])
-            print(self.new_ob['1330'])
-            print('ffffffffffffffffffff')
+            # print(self.last_ob['1303'])
+            # print(self.new_ob['1330'])
+            # print('ffffffffffffffffffff')
             return
 
         if self.instrument == 'all':
@@ -121,8 +123,8 @@ class LastTickHandler(DataHandler):
                     df.loc[key, 'lastvol'] = 0
         else:
             instrument_dict = self.new_ob[self.instrument]
-            print(instrument_dict)
-            print(self.last_ob['1303'])
+            # print(instrument_dict)
+            # print(self.last_ob['1303'])
             vol = eval(instrument_dict['2'])
             if instrument_dict['9'] == self.last_ob[self.instrument]['9'] and \
                     instrument_dict['19'] != self.last_ob[self.instrument]['19']:
