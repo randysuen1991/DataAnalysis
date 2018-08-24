@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import copy
 
+
 # These handlers handle the socket data from MasterLink server.
 class DataHandler:
     def __init__(self, start_time, end_time, instrument):
@@ -88,11 +89,16 @@ class LastTickHandler(DataHandler):
         self.new_obs = dict()
 
     def __call__(self, time, ob, df):
-
         if time == self.start_time and not self.recorded:
             self.recorded = True
-            
-        if time == self.start_time and self.recorded:
+            if self.instrument == 'all':
+                for key, value in ob.items():
+                    self.new_obs[key] = copy.copy(value)
+            else:
+                instrument_dict = ob[self.instrument]
+                self.new_obs[self.instrument] = copy.copy(instrument_dict)
+
+        elif time == self.start_time and self.recorded:
             self._Compute(ob)
         elif time == self.end_time:
             self._Compute(ob)
@@ -100,44 +106,37 @@ class LastTickHandler(DataHandler):
 
     def _Compute(self, ob):
         if self.instrument == 'all':
-            for key, value in self.new_ob:
+            for key, value in self.new_obs.items():
                 if value != ob[key]:
-                    self.last_ob = copy.copy(self.new_ob)
-                    self.new_ob = copy.copy(ob)
+                    self.last_obs[key] = copy.copy(self.new_obs[key])
+                    self.new_obs[key] = copy.copy(ob[key])
         else:
             instrument_dict = ob[self.instrument]
-            if instrument_dict != self.new_ob:
-                self.last_ob = copy.copy(self.new_ob)
-                self.new_ob = copy.copy(ob)
+            if instrument_dict != self.new_obs[self.instrument]:
+                self.last_obs[self.instrument] = copy.copy(self.new_obs[self.instrument])
+                self.new_obs[self.instrument] = copy.copy(ob[self.instrument])
 
     def _Record(self, ob, df):
-        # print(self.last_ob)
-        # print(self.new_ob)
-        if self.last_ob is None or self.new_ob is None:
-            # print(self.last_ob['1303'])
-            # print(self.new_ob['1330'])
-            # print('ffffffffffffffffffff')
+        if len(self.last_obs.keys()) == 0 or len(self.new_obs.keys()) == 0:
             return
 
         if self.instrument == 'all':
-            for key, value in self.new_ob.items():
+            for key, value in self.new_obs.items():
                 vol = eval(value['2'])
-                if value['9'] == self.last_ob[key]['9'] and value['19'] != self.last_ob[key]['19']:
-                    df.loc[key, 'lastvol'] = vol
-                elif value['9'] != self.last_ob[key]['9'] and value['19'] == self.last_ob[key]['19']:
+                if value['9'] == self.last_obs[key]['9'] and value['19'] != self.last_obs[key]['19']:
                     df.loc[key, 'lastvol'] = -vol
+                elif value['9'] != self.last_obs[key]['9'] and value['19'] == self.last_obs[key]['19']:
+                    df.loc[key, 'lastvol'] = vol
                 else:
                     df.loc[key, 'lastvol'] = 0
         else:
-            instrument_dict = self.new_ob[self.instrument]
-            # print(instrument_dict)
-            # print(self.last_ob['1303'])
+            instrument_dict = self.new_obs[self.instrument]
             vol = eval(instrument_dict['2'])
-            if instrument_dict['9'] == self.last_ob[self.instrument]['9'] and \
-                    instrument_dict['19'] != self.last_ob[self.instrument]['19']:
-                df.loc[self.instrument, 'lastvol'] = vol
-            elif instrument_dict['9'] != self.last_ob[self.instrument]['9'] and \
-                    instrument_dict['19'] == self.last_ob[self.instrument]['19']:
+            if instrument_dict['9'] == self.last_obs[self.instrument]['9'] and \
+                    instrument_dict['19'] != self.last_obs[self.instrument]['19']:
                 df.loc[self.instrument, 'lastvol'] = -vol
+            elif instrument_dict['9'] != self.last_obs[self.instrument]['9'] and \
+                    instrument_dict['19'] == self.last_obs[self.instrument]['19']:
+                df.loc[self.instrument, 'lastvol'] = vol
             else:
                 df.loc[self.instrument, 'lastvol'] = 0
