@@ -48,8 +48,13 @@ class MidPriceHandler(DataHandler):
 
 
 class OBPressureHandler(DataHandler):
-    def __init__(self, start_time, end_time, instrument):
+
+    bid_index = ['9', '10', '11', '12', '13']
+    ask_index = ['19', '20', '21', '22', '23']
+
+    def __init__(self, start_time, end_time, instrument, depth):
         super().__init__(start_time, end_time, instrument)
+        self.depth = depth
 
     def _Compute(self, ob):
         pass
@@ -58,21 +63,21 @@ class OBPressureHandler(DataHandler):
         if self.instrument == 'all':
             for key, value in ob.items():
                 bid_amount = 0
-                for idx in ['9', '10', '11', '12', '13']:
+                for idx in self.bid_index[0:self.depth]:
                     bid_amount += eval(value[idx])
                 ask_amount = 0
-                for idx in ['19', '20', '21', '22', '23']:
+                for idx in self.ask_index[0:self.depth]:
                     ask_amount += eval(value[idx])
-                df.loc[key, 'obp15'] = bid_amount / ask_amount
+                df.loc[key, 'obp1'+str(self.depth)] = bid_amount / ask_amount
         else:
             instrument_dict = ob[self.instrument]
             bid_amount = 0
-            for idx in ['9', '10', '11', '12', '13']:
+            for idx in self.bid_index[0:self.depth]:
                 bid_amount += eval(instrument_dict[idx])
             ask_amount = 0
-            for idx in ['19', '20', '21', '22', '23']:
+            for idx in self.ask_index[0:self.depth]:
                 ask_amount += eval(instrument_dict[idx])
-            df.loc[self.instrument, 'obp15'] = bid_amount / ask_amount
+            df.loc[self.instrument, 'obp1'+str(self.depth)] = bid_amount / ask_amount
 
 
 # This handler would write down the last trade volume.
