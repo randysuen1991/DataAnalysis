@@ -168,21 +168,21 @@ class CumulativeTickHandler(DataHandler):
             for key, value in self.obs.items():
                 if value != ob[key]:
                     if ob[key]['2'] != self.obs[key]['2']:
-                        if ob[key]['1'] >= self.obs[key]['9']:
+                        if eval(ob[key]['1']) >= eval(self.obs[key]['9']):
                             try:
                                 self.ask_num[key] += 1
-                                self.ask_amount[key] += ob[key]['2']
+                                self.ask_amount[key] += eval(ob[key]['2'])
                             except KeyError:
                                 self.ask_num[key] = 1
-                                self.ask_amount = ob[key]['2']
+                                self.ask_amount[key] = eval(ob[key]['2'])
 
-                        elif ob[key]['1'] <= self.obs[key]['4']:
+                        elif eval(ob[key]['1']) <= eval(self.obs[key]['4']):
                             try:
                                 self.bid_num[key] += 1
-                                self.bid_amount[key] += ob[key]['2']
+                                self.bid_amount[key] += eval(ob[key]['2'])
                             except KeyError:
-                                self.ask_num[key] = 1
-                                self.ask_amount[key] = ob[key]['2']
+                                self.bid_num[key] = 1
+                                self.bid_amount[key] = eval(ob[key]['2'])
 
                     self.obs[key] = copy.copy(ob[key])
 
@@ -190,31 +190,56 @@ class CumulativeTickHandler(DataHandler):
             instrument_dict = ob[self.instrument]
             if instrument_dict != self.obs[self.instrument]:
                 if instrument_dict['2'] != self.obs[self.instrument]['2']:
-                    if instrument_dict['1'] >= self.obs[self.instrument]['9']:
+                    if eval(instrument_dict['1']) >= eval(self.obs[self.instrument]['9']):
                         try:
                             self.ask_num[self.instrument] += 1
-                            self.ask_amount[self.instrument] += ob[self.instrument]['2']
+                            self.ask_amount[self.instrument] += eval(ob[self.instrument]['2'])
                         except KeyError:
                             self.ask_num[self.instrument] = 1
-                            self.ask_amount = ob[self.instrument]['2']
-                    elif instrument_dict['1'] <= self.obs[self.instrument]['4']:
+                            self.ask_amount[self.instrument] = eval(ob[self.instrument]['2'])
+                    elif eval(instrument_dict['1']) <= eval(self.obs[self.instrument]['4']):
                         try:
                             self.bid_num[self.instrument] += 1
-                            self.bid_amount[self.instrument] += ob[self.instrument]['2']
+                            self.bid_amount[self.instrument] += eval(ob[self.instrument]['2'])
                         except KeyError:
                             self.bid_num[self.instrument] = 1
-                            self.bid_amount[self.instrument] = ob[self.instrument]['2']
+                            self.bid_amount[self.instrument] = eval(ob[self.instrument]['2'])
                 self.obs[self.instrument] = copy.copy(ob[self.instrument])
 
     def _Record(self, ob, df):
+
         if self.instrument == 'all':
             for key, value in self.obs.items():
-                df.loc[key, 'cubid_num'] = self.bid_num[key]
-                df.loc[key, 'cuask_num'] = self.ask_num[key]
-                df.loc[key, 'cubid_amount'] = self.bid_amount[key]
-                df.loc[key, 'cuask_amount'] = self.ask_amount[key]
+                try:
+                    df.loc[key, 'cubid_num'] = self.bid_num[key]
+                except KeyError:
+                    df.loc[key, 'cubid_num'] = 0
+                try:
+                    df.loc[key, 'cuask_num'] = self.ask_num[key]
+                except KeyError:
+                    df.loc[key, 'cuask_num'] = 0
+                try:
+                    df.loc[key, 'cubid_amount'] = self.bid_amount[key]
+                except KeyError:
+                    df.loc[key, 'cubid_amount'] = 0
+                try:
+                    df.loc[key, 'cuask_amount'] = self.ask_amount[key]
+                except KeyError:
+                    df.loc[key, 'cuask_amount'] = 0
         else:
-            df.loc[self.instrument, 'cubid_num'] = self.bid_num[self.instrument]
-            df.loc[self.instrument, 'cuask_num'] = self.ask_num[self.instrument]
-            df.loc[self.instrument, 'cubid_amount'] = self.bid_amount[self.instrument]
-            df.loc[self.instrument, 'cuask_amount'] = self.ask_amount[self.instrument]
+            try:
+                df.loc[self.instrument, 'cubid_num'] = self.bid_num[self.instrument]
+            except KeyError:
+                df.loc[self.instrument, 'cubid_num'] = 0
+            try:
+                df.loc[self.instrument, 'cuask_num'] = self.ask_num[self.instrument]
+            except KeyError:
+                df.loc[self.instrument, 'cuask_num'] = 0
+            try:
+                df.loc[self.instrument, 'cubid_amount'] = self.bid_amount[self.instrument]
+            except KeyError:
+                df.loc[self.instrument, 'cubid_amount'] = 0
+            try:
+                df.loc[self.instrument, 'cuask_amount'] = self.ask_amount[self.instrument]
+            except KeyError:
+                df.loc[self.instrument, 'cuask_amount'] = 0
