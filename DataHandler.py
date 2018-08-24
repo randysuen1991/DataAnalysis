@@ -88,7 +88,11 @@ class LastTickHandler(DataHandler):
         self.new_obs = dict()
 
     def __call__(self, time, ob, df):
+
         if time == self.start_time and not self.recorded:
+            self.recorded = True
+            
+        if time == self.start_time and self.recorded:
             self._Compute(ob)
         elif time == self.end_time:
             self._Compute(ob)
@@ -96,13 +100,16 @@ class LastTickHandler(DataHandler):
 
     def _Compute(self, ob):
         if self.instrument == 'all':
-            for key, value in self.new_
-                if value != self.new_ob:
-                    print('tttttttttttttttttttt')
+            for key, value in self.new_ob:
+                if value != ob[key]:
                     self.last_ob = copy.copy(self.new_ob)
                     self.new_ob = copy.copy(ob)
         else:
-            
+            instrument_dict = ob[self.instrument]
+            if instrument_dict != self.new_ob:
+                self.last_ob = copy.copy(self.new_ob)
+                self.new_ob = copy.copy(ob)
+
     def _Record(self, ob, df):
         # print(self.last_ob)
         # print(self.new_ob)
