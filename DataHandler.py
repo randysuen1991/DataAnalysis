@@ -123,9 +123,9 @@ class LastTickHandler(DataHandler):
         if self.instrument == 'all':
             for key, value in self.new_obs.items():
                 vol = eval(value['2'])
-                if value['9'] == self.last_obs[key]['9'] and value['19'] != self.last_obs[key]['19']:
+                if value['1'] >= self.last_obs[key]['9'] and value['19'] != self.last_obs[key]['19']:
                     df.loc[key, 'lastvol'] = -vol
-                elif value['9'] != self.last_obs[key]['9'] and value['19'] == self.last_obs[key]['19']:
+                elif value['1'] <= self.last_obs[key]['4'] and value['19'] == self.last_obs[key]['19']:
                     df.loc[key, 'lastvol'] = vol
                 else:
                     df.loc[key, 'lastvol'] = 0
@@ -140,3 +140,16 @@ class LastTickHandler(DataHandler):
                 df.loc[self.instrument, 'lastvol'] = vol
             else:
                 df.loc[self.instrument, 'lastvol'] = 0
+
+
+class CumulativeTickHandler(DataHandler):
+    def __init__(self, start_time, end_time, instrument):
+        super().__init__(start_time, end_time, instrument)
+
+    def __call__(self, time, ob, df):
+        if time == self.start_time and not self.recorded:
+            self.recorded = True
+        elif time == self.start_time and self.recorded:
+            pass
+        elif time == self.end_time:
+            self._Record(ob, df)
