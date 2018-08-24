@@ -102,7 +102,7 @@ class LastTickHandler(DataHandler):
             self._Compute(ob)
         elif time == self.end_time:
             self._Compute(ob)
-            self._Record(ob, df)
+            self._Record(self.new_obs, df)
 
     def _Compute(self, ob):
         if self.instrument == 'all':
@@ -144,10 +144,10 @@ class CumulativeTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument):
         super().__init__(start_time, end_time, instrument)
         self.obs = dict()
-        self.bid_num = 0
-        self.ask_num = 0
-        self.bid_amount = 0
-        self.ask_amount = 0
+        self.bid_num = dict()
+        self.ask_num = dict()
+        self.bid_amount = dict()
+        self.ask_amount = dict()
 
     def __call__(self, time, ob, df):
         if time == self.start_time and not self.recorded:
@@ -159,21 +159,38 @@ class CumulativeTickHandler(DataHandler):
                 instrument_dict = ob[self.instrument]
                 self.obs[self.instrument] = copy.copy(instrument_dict)
         elif time == self.start_time and self.recorded:
-            self._Compute()
+            self._Compute(ob)
         elif time == self.end_time:
-            self._Record(ob, df)
+            self._Record(None, df)
 
     def _Compute(self, ob):
         if self.instrument == 'all':
             for key, value in self.obs.items():
                 if value != ob[key]:
-                    self.last_obs[key] = copy.copy(self.new_obs[key])
-                    self.new_obs[key] = copy.copy(ob[key])
+                    if ob[key]['2'] != self.obs[key]['2']:
+                        if ob[key]['1'] >= self.obs[key]['9']:
+                            self.ask_num[key] += 1
+                            self.ask_amount[key] += ob[key]['2']
+                        elif ob[key]['1'] <= self.obs[key]['4']:
+                            self.bid_num[key] += 1
+                            self.bid_amount[key] += ob[key]['2']
+
+                    self.obs[key] = copy.copy(ob[key])
+
         else:
             instrument_dict = ob[self.instrument]
-            if instrument_dict != self.new_obs[self.instrument]:
-                self.last_obs[self.instrument] = copy.copy(self.new_obs[self.instrument])
-                self.new_obs[self.instrument] = copy.copy(ob[self.instrument])
+            if instrument_dict != self.obs[self.instrument]:
+                if instrument_dict['2'] != self.obs[self.instrument]['2']:
+                    if instrument_dict['1'] >= self.obs[self.instrument]['9']:
+                        self.ask_num[self.instrument] += 1
+                        self.ask_amount[self.instrument] += ob[self.instrument]['2']
+                    elif instrument_dict['1'] <= self.obs[self.instrument]['4']:
+                        self.bid_num[self.instrument] += 1
+                        self.bid_amount[self.instrument] += ob[self.instrument]['2']
+                self.obs[self.instrument] = copy.copy(ob[self.instrument])
 
     def _Record(self, ob, df):
-        pass
+        if self.instrument == 'all':
+
+
+        else:
