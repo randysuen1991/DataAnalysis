@@ -169,11 +169,20 @@ class CumulativeTickHandler(DataHandler):
                 if value != ob[key]:
                     if ob[key]['2'] != self.obs[key]['2']:
                         if ob[key]['1'] >= self.obs[key]['9']:
-                            self.ask_num[key] += 1
-                            self.ask_amount[key] += ob[key]['2']
+                            try:
+                                self.ask_num[key] += 1
+                                self.ask_amount[key] += ob[key]['2']
+                            except KeyError:
+                                self.ask_num[key] = 1
+                                self.ask_amount = ob[key]['2']
+
                         elif ob[key]['1'] <= self.obs[key]['4']:
-                            self.bid_num[key] += 1
-                            self.bid_amount[key] += ob[key]['2']
+                            try:
+                                self.bid_num[key] += 1
+                                self.bid_amount[key] += ob[key]['2']
+                            except KeyError:
+                                self.ask_num[key] = 1
+                                self.ask_amount[key] = ob[key]['2']
 
                     self.obs[key] = copy.copy(ob[key])
 
@@ -182,15 +191,30 @@ class CumulativeTickHandler(DataHandler):
             if instrument_dict != self.obs[self.instrument]:
                 if instrument_dict['2'] != self.obs[self.instrument]['2']:
                     if instrument_dict['1'] >= self.obs[self.instrument]['9']:
-                        self.ask_num[self.instrument] += 1
-                        self.ask_amount[self.instrument] += ob[self.instrument]['2']
+                        try:
+                            self.ask_num[self.instrument] += 1
+                            self.ask_amount[self.instrument] += ob[self.instrument]['2']
+                        except KeyError:
+                            self.ask_num[self.instrument] = 1
+                            self.ask_amount = ob[self.instrument]['2']
                     elif instrument_dict['1'] <= self.obs[self.instrument]['4']:
-                        self.bid_num[self.instrument] += 1
-                        self.bid_amount[self.instrument] += ob[self.instrument]['2']
+                        try:
+                            self.bid_num[self.instrument] += 1
+                            self.bid_amount[self.instrument] += ob[self.instrument]['2']
+                        except KeyError:
+                            self.bid_num[self.instrument] = 1
+                            self.bid_amount[self.instrument] = ob[self.instrument]['2']
                 self.obs[self.instrument] = copy.copy(ob[self.instrument])
 
     def _Record(self, ob, df):
         if self.instrument == 'all':
-
-
+            for key, value in self.obs.items():
+                df.loc[key, 'cubid_num'] = self.bid_num[key]
+                df.loc[key, 'cuask_num'] = self.ask_num[key]
+                df.loc[key, 'cubid_amount'] = self.bid_amount[key]
+                df.loc[key, 'cuask_amount'] = self.ask_amount[key]
         else:
+            df.loc[self.instrument, 'cubid_num'] = self.bid_num[self.instrument]
+            df.loc[self.instrument, 'cuask_num'] = self.ask_num[self.instrument]
+            df.loc[self.instrument, 'cubid_amount'] = self.bid_amount[self.instrument]
+            df.loc[self.instrument, 'cuask_amount'] = self.ask_amount[self.instrument]
