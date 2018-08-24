@@ -123,20 +123,18 @@ class LastTickHandler(DataHandler):
         if self.instrument == 'all':
             for key, value in self.new_obs.items():
                 vol = eval(value['2'])
-                if value['1'] >= self.last_obs[key]['9'] and value['19'] != self.last_obs[key]['19']:
+                if value['1'] >= self.last_obs[key]['9']:
                     df.loc[key, 'lastvol'] = -vol
-                elif value['1'] <= self.last_obs[key]['4'] and value['19'] == self.last_obs[key]['19']:
+                elif value['1'] <= self.last_obs[key]['4']:
                     df.loc[key, 'lastvol'] = vol
                 else:
                     df.loc[key, 'lastvol'] = 0
         else:
             instrument_dict = self.new_obs[self.instrument]
             vol = eval(instrument_dict['2'])
-            if instrument_dict['9'] == self.last_obs[self.instrument]['9'] and \
-                    instrument_dict['19'] != self.last_obs[self.instrument]['19']:
+            if instrument_dict['1'] >= self.last_obs[self.instrument]['9']:
                 df.loc[self.instrument, 'lastvol'] = -vol
-            elif instrument_dict['9'] != self.last_obs[self.instrument]['9'] and \
-                    instrument_dict['19'] == self.last_obs[self.instrument]['19']:
+            elif instrument_dict['1'] <= self.last_obs[self.instrument]['4']:
                 df.loc[self.instrument, 'lastvol'] = vol
             else:
                 df.loc[self.instrument, 'lastvol'] = 0
@@ -153,3 +151,18 @@ class CumulativeTickHandler(DataHandler):
             pass
         elif time == self.end_time:
             self._Record(ob, df)
+
+    def _Compute(self, ob):
+        if self.instrument == 'all':
+            for key, value in self.new_obs.items():
+                if value != ob[key]:
+                    self.last_obs[key] = copy.copy(self.new_obs[key])
+                    self.new_obs[key] = copy.copy(ob[key])
+        else:
+            instrument_dict = ob[self.instrument]
+            if instrument_dict != self.new_obs[self.instrument]:
+                self.last_obs[self.instrument] = copy.copy(self.new_obs[self.instrument])
+                self.new_obs[self.instrument] = copy.copy(ob[self.instrument])
+
+    def _Record(self, ob, df):
+        pass
