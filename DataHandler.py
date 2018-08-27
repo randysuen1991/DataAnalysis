@@ -5,11 +5,12 @@ import copy
 
 # These handlers handle the socket data from MasterLink server.
 class DataHandler:
-    def __init__(self, start_time, end_time, instrument):
+    def __init__(self, start_time, end_time, instrument, name):
         self.instrument = instrument
         self.start_time = start_time
         self.end_time = end_time
         self.recorded = False
+        self.name = name
 
     def __call__(self, time, ob, df):
         if time == self.start_time and not self.recorded:
@@ -26,8 +27,8 @@ class DataHandler:
 
 
 class MidPriceHandler(DataHandler):
-    def __init__(self, start_time, end_time, instrument):
-        super().__init__(start_time, end_time, instrument)
+    def __init__(self, start_time, end_time, instrument, name):
+        super().__init__(start_time, end_time, instrument, name)
         self.mid_price_start = dict()
 
     def _Compute(self, ob):
@@ -41,11 +42,11 @@ class MidPriceHandler(DataHandler):
         if self.instrument == 'all':
             for key, value in ob.items():
                 mid_price = (eval(value['14']) + eval(value['4'])) / 2
-                df.loc[key, 'mid_price_return'] = (mid_price - self.mid_price_start[key]) / self.mid_price_start[key]
+                df.loc[key, self.name] = (mid_price - self.mid_price_start[key]) / self.mid_price_start[key]
         else:
             mid_price = (eval(ob[self.instrument]['14']) + eval(ob[self.instrument]['4'])) / 2
-            df.loc[self.instrument, 'mid_price_return'] = (mid_price - self.mid_price_start[self.instrument]) / \
-                                                          self.mid_price_start[self.instrument]
+            df.loc[self.instrument, self.name] = (mid_price - self.mid_price_start[self.instrument]) / \
+                                                 self.mid_price_start[self.instrument]
 
 
 class OBPressureHandler(DataHandler):
@@ -53,8 +54,8 @@ class OBPressureHandler(DataHandler):
     bid_index = ['9', '10', '11', '12', '13']
     ask_index = ['19', '20', '21', '22', '23']
 
-    def __init__(self, start_time, end_time, instrument, depth):
-        super().__init__(start_time, end_time, instrument)
+    def __init__(self, start_time, end_time, instrument, depth, name):
+        super().__init__(start_time, end_time, instrument, name)
         self.depth = depth
 
     def _Compute(self, ob):
@@ -69,7 +70,7 @@ class OBPressureHandler(DataHandler):
                 ask_amount = 0
                 for idx in self.ask_index[0:self.depth]:
                     ask_amount += eval(value[idx])
-                df.loc[key, 'obp1'+str(self.depth)] = bid_amount / ask_amount
+                df.loc[key, self.name] = bid_amount / ask_amount
         else:
             instrument_dict = ob[self.instrument]
             bid_amount = 0
@@ -78,19 +79,18 @@ class OBPressureHandler(DataHandler):
             ask_amount = 0
             for idx in self.ask_index[0:self.depth]:
                 ask_amount += eval(instrument_dict[idx])
-            df.loc[self.instrument, 'obp1'+str(self.depth)] = bid_amount / ask_amount
+            df.loc[self.instrument, self.name] = bid_amount / ask_amount
 
 
 # This handler would write down the last trade volume.
 class LastTickHandler(DataHandler):
-    def __init__(self, start_time, end_time, instrument):
-        super().__init__(start_time, end_time, instrument)
+    def __init__(self, start_time, end_time, instrument, name):
+        super().__init__(start_time, end_time, instrument, name)
         self.last_obs = dict()
         self.new_obs = dict()
 
     def __call__(self, time, ob, df):
-        if time == self.start_time and not self.recorded:
-            self.recorded = True
+        if time == self.start_time:
             if self.instrument == 'all':
                 for key, value in ob.items():
                     self.new_obs[key] = copy.copy(value)
@@ -98,8 +98,9 @@ class LastTickHandler(DataHandler):
                 instrument_dict = ob[self.instrument]
                 self.new_obs[self.instrument] = copy.copy(instrument_dict)
 
-        elif time == self.start_time and self.recorded:
+        elif self.end_time > time > self.start_time:
             self._Compute(ob)
+
         elif time == self.end_time:
             self._Compute(ob)
             self._Record(self.new_obs, df)
@@ -124,25 +125,25 @@ class LastTickHandler(DataHandler):
             for key, value in self.new_obs.items():
                 vol = eval(value['2'])
                 if value['1'] >= self.last_obs[key]['9']:
-                    df.loc[key, 'lastvol'] = -vol
+                    df.loc[key, self.name] = -vol
                 elif value['1'] <= self.last_obs[key]['4']:
-                    df.loc[key, 'lastvol'] = vol
+                    df.loc[key, self.name] = vol
                 else:
-                    df.loc[key, 'lastvol'] = 0
+                    df.loc[key, self.name] = 0
         else:
             instrument_dict = self.new_obs[self.instrument]
             vol = eval(instrument_dict['2'])
             if instrument_dict['1'] >= self.last_obs[self.instrument]['9']:
-                df.loc[self.instrument, 'lastvol'] = -vol
+                df.loc[self.instrument, self.name] = -vol
             elif instrument_dict['1'] <= self.last_obs[self.instrument]['4']:
-                df.loc[self.instrument, 'lastvol'] = vol
+                df.loc[self.instrument, self.name] = vol
             else:
-                df.loc[self.instrument, 'lastvol'] = 0
+                df.loc[self.instrument, self.name] = 0
 
 
 class CumulativeTickHandler(DataHandler):
-    def __init__(self, start_time, end_time, instrument):
-        super().__init__(start_time, end_time, instrument)
+    def __init__(self, start_time, end_time, instrument, name=None):
+        super().__init__(start_time, end_time, instrument, name)
         self.obs = dict()
         self.bid_num = dict()
         self.ask_num = dict()
@@ -211,35 +212,35 @@ class CumulativeTickHandler(DataHandler):
         if self.instrument == 'all':
             for key, value in self.obs.items():
                 try:
-                    df.loc[key, 'cubid_num'] = self.bid_num[key]
+                    df.loc[key, 'cubid_time'] = self.bid_num[key]
                 except KeyError:
-                    df.loc[key, 'cubid_num'] = 0
+                    df.loc[key, 'cubid_time'] = 0
                 try:
-                    df.loc[key, 'cuask_num'] = self.ask_num[key]
+                    df.loc[key, 'cuask_time'] = self.ask_num[key]
                 except KeyError:
-                    df.loc[key, 'cuask_num'] = 0
+                    df.loc[key, 'cuask_time'] = 0
                 try:
-                    df.loc[key, 'cubid_amount'] = self.bid_amount[key]
+                    df.loc[key, 'cubid_vol'] = self.bid_amount[key]
                 except KeyError:
-                    df.loc[key, 'cubid_amount'] = 0
+                    df.loc[key, 'cubid_vol'] = 0
                 try:
-                    df.loc[key, 'cuask_amount'] = self.ask_amount[key]
+                    df.loc[key, 'cuask_vol'] = self.ask_amount[key]
                 except KeyError:
-                    df.loc[key, 'cuask_amount'] = 0
+                    df.loc[key, 'cuask_vol'] = 0
         else:
             try:
-                df.loc[self.instrument, 'cubid_num'] = self.bid_num[self.instrument]
+                df.loc[self.instrument, 'cubid_time'] = self.bid_num[self.instrument]
             except KeyError:
-                df.loc[self.instrument, 'cubid_num'] = 0
+                df.loc[self.instrument, 'cubid_time'] = 0
             try:
-                df.loc[self.instrument, 'cuask_num'] = self.ask_num[self.instrument]
+                df.loc[self.instrument, 'cuask_time'] = self.ask_num[self.instrument]
             except KeyError:
-                df.loc[self.instrument, 'cuask_num'] = 0
+                df.loc[self.instrument, 'cuask_time'] = 0
             try:
-                df.loc[self.instrument, 'cubid_amount'] = self.bid_amount[self.instrument]
+                df.loc[self.instrument, 'cubid_vol'] = self.bid_amount[self.instrument]
             except KeyError:
-                df.loc[self.instrument, 'cubid_amount'] = 0
+                df.loc[self.instrument, 'cubid_vol'] = 0
             try:
-                df.loc[self.instrument, 'cuask_amount'] = self.ask_amount[self.instrument]
+                df.loc[self.instrument, 'cuask_vol'] = self.ask_amount[self.instrument]
             except KeyError:
-                df.loc[self.instrument, 'cuask_amount'] = 0
+                df.loc[self.instrument, 'cuask_vol'] = 0
