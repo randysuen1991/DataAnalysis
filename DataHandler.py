@@ -147,23 +147,6 @@ class CumulativeTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name=None, **kwargs):
         super().__init__(start_time, end_time, instrument, name)
         self.new_obs = dict()
-        self.cubid_time = dict()
-        self.cuask_time = dict()
-        self.cubid_vol = dict()
-        self.cuask_vol = dict()
-        if self.instrument == 'all':
-            instruments = kwargs.get('id')
-            for instrument in instruments:
-                self.cubid_time[instrument] = 0
-                self.cuask_time[instrument] = 0
-                self.cubid_vol[instrument] = 0
-                self.cuask_vol[instrument] = 0
-        else:
-            for instrument in self.instrument:
-                self.cubid_time[instrument] = 0
-                self.cuask_time[instrument] = 0
-                self.cubid_vol[instrument] = 0
-                self.cuask_vol[instrument] = 0
 
     def __call__(self, time, ob, df, **kwargs):
         if self.end_time > time >= self.start_time:
@@ -185,8 +168,9 @@ class CumulativeTickHandler(DataHandler):
             self.done = True
             self._Compute(ob)
             self._Record(ob, df, trade_flags=trade_flags)
-
-            self._Final(df)
+            df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
+            df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
+            df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
 
     def _Compute(self, ob, **kwargs):
         if self.instrument == 'all':
@@ -202,45 +186,24 @@ class CumulativeTickHandler(DataHandler):
         if len(self.new_obs.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
-        for item in trade_flags:
-            try:
-                stock = item[0]
-            except IndexError:
-                break
+        try:
+            stock = trade_flags[0]
+        except IndexError:
+            return
 
-            vol = eval(item[1]) - eval(self.new_obs[stock]['3'])
-            if len(item) != 3:
-                if self.new_obs[stock]['25'] == '1':
-                    self.cubid_time[stock] += 1
-                    self.cubid_vol[stock] += vol
-                elif self.new_obs[stock]['25'] == '2':
-                    self.cuask_time[stock] += 1
-                    self.cuask_vol[stock] += vol
-            else:
-                if item[2] == '1':
-                    self.cubid_time[stock] += 1
-                    self.cubid_vol[stock] += vol
-                elif item[2] == '2':
-                    self.cuask_time[stock] += 1
-                    self.cuask_vol[stock] += vol
-
-    def _Final(self, df):
-        if self.instrument == 'all':
-            for key, value in self.new_obs.items():
-                    df.loc[key, 'cubid_time'] = self.cubid_time[key]
-                    df.loc[key, 'cuask_time'] = self.cuask_time[key]
-                    df.loc[key, 'cubid_vol'] = self.cubid_vol[key]
-                    df.loc[key, 'cuask_vol'] = self.cuask_vol[key]
-
-            df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
-            df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
-            df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
+        vol = eval(trade_flags[1]) - eval(self.new_obs[stock]['3'])
+        if len(trade_flags) != 3:
+            if self.new_obs[stock]['25'] == '1':
+                df.loc[stock, 'cubid_time'] += 1
+                df.loc[stock, 'cubid_vol'] += vol
+            elif self.new_obs[stock]['25'] == '2':
+                df.loc[stock, 'cuask_time'] += 1
+                df.loc[stock, 'cuask_vol'] += vol
         else:
-            df.loc[self.instrument, 'cubid_time'] = self.cubid_time[self.instrument]
-            df.loc[self.instrument, 'cuask_time'] = self.cuask_time[self.instrument]
-            df.loc[self.instrument, 'cubid_vol'] = self.cubid_vol[self.instrument]
-            df.loc[self.instrument, 'cuask_vol'] = self.cuask_vol[self.instrument]
+            if trade_flags[2] == '1':
+                df.loc[stock, 'cubid_time'] += 1
+                df.loc[stock, 'cubid_vol'] += vol
+            elif trade_flags[2] == '2':
+                df.loc[stock, 'cuask_time'] += 1
+                df.loc[stock, 'cuask_vol'] += vol
 
-            df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
-            df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
-            df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
