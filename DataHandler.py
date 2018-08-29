@@ -93,17 +93,7 @@ class LastTickHandler(DataHandler):
         self.new_obs = dict()
 
     def __call__(self, time, ob, df, **kwargs):
-
-        if time == self.start_time:
-            self.recorded = True
-            if self.instrument == 'all':
-                for key, value in ob.items():
-                    self.new_obs[key] = copy.copy(value)
-            else:
-                instrument_dict = ob[self.instrument]
-                self.new_obs[self.instrument] = copy.copy(instrument_dict)
-
-        elif self.end_time > time > self.start_time:
+        if self.end_time > time >= self.start_time:
             if self.recorded:
                 trade_flags = kwargs.get('trade_flags')
                 self._Record(ob, df, trade_flags=trade_flags)
@@ -138,7 +128,6 @@ class LastTickHandler(DataHandler):
             return
         trade_flags = kwargs.get('trade_flags')
         for item in trade_flags:
-            # print(item)
             try:
                 stock = item[0]
             except IndexError:
@@ -158,36 +147,26 @@ class CumulativeTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name=None, **kwargs):
         super().__init__(start_time, end_time, instrument, name)
         self.new_obs = dict()
-        self.bid_num = dict()
-        self.ask_num = dict()
-        self.bid_amount = dict()
-        self.ask_amount = dict()
+        self.cubid_time = dict()
+        self.cuask_time = dict()
+        self.cubid_vol = dict()
+        self.cuask_vol = dict()
         if self.instrument == 'all':
             instruments = kwargs.get('id')
             for instrument in instruments:
-                self.bid_num[instrument] = 0
-                self.ask_num[instrument] = 0
-                self.bid_amount[instrument] = 0
-                self.ask_amount[instrument] = 0
+                self.cubid_time[instrument] = 0
+                self.cuask_time[instrument] = 0
+                self.cubid_vol[instrument] = 0
+                self.cuask_vol[instrument] = 0
         else:
             for instrument in self.instrument:
-                self.bid_num[instrument] = 0
-                self.ask_num[instrument] = 0
-                self.bid_amount[instrument] = 0
-                self.ask_amount[instrument] = 0
+                self.cubid_time[instrument] = 0
+                self.cuask_time[instrument] = 0
+                self.cubid_vol[instrument] = 0
+                self.cuask_vol[instrument] = 0
 
     def __call__(self, time, ob, df, **kwargs):
-
-        if time == self.start_time:
-            self.recorded = True
-            if self.instrument == 'all':
-                for key, value in ob.items():
-                    self.new_obs[key] = copy.copy(value)
-            else:
-                instrument_dict = ob[self.instrument]
-                self.new_obs[self.instrument] = copy.copy(instrument_dict)
-
-        elif self.end_time > time > self.start_time:
+        if self.end_time > time >= self.start_time:
             if self.recorded:
                 trade_flags = kwargs.get('trade_flags')
                 self._Record(ob, df, trade_flags=trade_flags)
@@ -224,69 +203,44 @@ class CumulativeTickHandler(DataHandler):
             return
         trade_flags = kwargs.get('trade_flags')
         for item in trade_flags:
-            # print(item)
             try:
                 stock = item[0]
             except IndexError:
                 break
 
-            vol = item[1] - eval(self.new_obs[stock]['3'])
+            vol = eval(item[1]) - eval(self.new_obs[stock]['3'])
             if len(item) != 3:
                 if self.new_obs[stock]['25'] == '1':
-                    self.bid_num[stock] += 1
-                    self.bid_amount[stock] += vol
+                    self.cubid_time[stock] += 1
+                    self.cubid_vol[stock] += vol
                 elif self.new_obs[stock]['25'] == '2':
-                    self.ask_num[stock] += 1
-                    self.ask_amount[stock] += vol
+                    self.cuask_time[stock] += 1
+                    self.cuask_vol[stock] += vol
             else:
                 if item[2] == '1':
-                    # print(stock, 'bid', vol)
-                    self.bid_num[stock] += 1
-                    self.bid_amount[stock] += vol
+                    self.cubid_time[stock] += 1
+                    self.cubid_vol[stock] += vol
                 elif item[2] == '2':
-                    # print(stock, 'ask', vol)
-                    self.ask_num[stock] += 1
-                    self.ask_amount[stock] += vol
+                    self.cuask_time[stock] += 1
+                    self.cuask_vol[stock] += vol
 
     def _Final(self, df):
         if self.instrument == 'all':
             for key, value in self.new_obs.items():
-                try:
-                    df.loc[key, 'cubid_time'] = self.bid_num[key]
-                except KeyError:
-                    df.loc[key, 'cubid_time'] = 0
-                try:
-                    df.loc[key, 'cuask_time'] = self.ask_num[key]
-                except KeyError:
-                    df.loc[key, 'cuask_time'] = 0
-                try:
-                    df.loc[key, 'cubid_vol'] = self.bid_amount[key]
-                except KeyError:
-                    df.loc[key, 'cubid_vol'] = 0
-                try:
-                    df.loc[key, 'cuask_vol'] = self.ask_amount[key]
-                except KeyError:
-                    df.loc[key, 'cuask_vol'] = 0
+                    df.loc[key, 'cubid_time'] = self.cubid_time[key]
+                    df.loc[key, 'cuask_time'] = self.cuask_time[key]
+                    df.loc[key, 'cubid_vol'] = self.cubid_vol[key]
+                    df.loc[key, 'cuask_vol'] = self.cuask_vol[key]
+
             df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
             df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
             df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
         else:
-            try:
-                df.loc[self.instrument, 'cubid_time'] = self.bid_num[self.instrument]
-            except KeyError:
-                df.loc[self.instrument, 'cubid_time'] = 0
-            try:
-                df.loc[self.instrument, 'cuask_time'] = self.ask_num[self.instrument]
-            except KeyError:
-                df.loc[self.instrument, 'cuask_time'] = 0
-            try:
-                df.loc[self.instrument, 'cubid_vol'] = self.bid_amount[self.instrument]
-            except KeyError:
-                df.loc[self.instrument, 'cubid_vol'] = 0
-            try:
-                df.loc[self.instrument, 'cuask_vol'] = self.ask_amount[self.instrument]
-            except KeyError:
-                df.loc[self.instrument, 'cuask_vol'] = 0
+            df.loc[self.instrument, 'cubid_time'] = self.cubid_time[self.instrument]
+            df.loc[self.instrument, 'cuask_time'] = self.cuask_time[self.instrument]
+            df.loc[self.instrument, 'cubid_vol'] = self.cubid_vol[self.instrument]
+            df.loc[self.instrument, 'cuask_vol'] = self.cuask_vol[self.instrument]
+
             df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
             df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
             df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
