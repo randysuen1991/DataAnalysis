@@ -127,26 +127,25 @@ class LastTickHandler(DataHandler):
         if len(self.new_obs.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
-        for item in trade_flags:
-            try:
-                stock = item[0]
-            except IndexError:
-                break
+        try:
+            stock = trade_flags[0]
+        except IndexError:
+            return
 
-            vol = item[1] - eval(self.new_obs[stock]['3'])
-            if len(item) != 3:
-                if self.new_obs[stock]['25'] == '1':
-                    vol = -vol
-            else:
-                if item[2] == '1':
-                    vol = -vol
-            df.loc[stock, self.name] = vol
+        vol = eval(trade_flags[1]) - eval(self.new_obs[stock]['3'])
+        if len(trade_flags) != 3:
+            if self.new_obs[stock]['25'] == '1':
+                vol = -vol
+        else:
+            if trade_flags[2] == '1':
+                vol = -vol
+        df.loc[stock, self.name] = vol
 
 
 class CumulativeTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name=None, **kwargs):
         super().__init__(start_time, end_time, instrument, name)
-        self.new_obs = dict()
+        self.trade_direction_volume = dict()
 
     def __call__(self, time, ob, df, **kwargs):
         if self.end_time > time >= self.start_time:
@@ -158,10 +157,14 @@ class CumulativeTickHandler(DataHandler):
                 self.recorded = True
                 if self.instrument == 'all':
                     for key, value in ob.items():
-                        self.new_obs[key] = copy.copy(value)
+                        self.trade_direction_volume[key] = dict()
+                        self.trade_direction_volume[key]['25'] = value[key]['25']
+                        self.trade_direction_volume[key]['3'] = value[key]['3']
                 else:
                     instrument_dict = ob[self.instrument]
-                    self.new_obs[self.instrument] = copy.copy(instrument_dict)
+                    self.trade_direction_volume[self.instrument] = dict()
+                    self.trade_direction_volume[self.instrument]['25'] = instrument_dict['25']
+                    self.trade_direction_volume[self.instrument]['3'] = instrument_dict['3']
 
         elif time >= self.end_time and not self.done:
             trade_flags = kwargs.get('trade_flags')
@@ -174,16 +177,16 @@ class CumulativeTickHandler(DataHandler):
 
     def _Compute(self, ob, **kwargs):
         if self.instrument == 'all':
-            for key, value in self.new_obs.items():
-                if value != ob[key]:
-                    self.new_obs[key] = copy.copy(ob[key])
+            for key in self.trade_direction_volume.keys():
+                self.trade_direction_volume[key]['25'] = ob[key]['25']
+                self.trade_direction_volume[key]['3'] = ob[key]['3']
         else:
-            instrument_dict = ob[self.instrument]
-            if instrument_dict != self.new_obs[self.instrument]:
-                self.new_obs[self.instrument] = copy.copy(ob[self.instrument])
+            for instrument in self.instrument:
+                self.trade_direction_volume[instrument]['25'] = ob[instrument]['25']
+                self.trade_direction_volume[instrument]['3'] = ob[instrument]['3']
 
     def _Record(self, ob, df, **kwargs):
-        if len(self.new_obs.keys()) == 0:
+        if len(self.trade_direction_volume.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
         try:
@@ -191,12 +194,12 @@ class CumulativeTickHandler(DataHandler):
         except IndexError:
             return
 
-        vol = eval(trade_flags[1]) - eval(self.new_obs[stock]['3'])
+        vol = eval(trade_flags[1]) - eval(self.trade_direction_volume[stock]['3'])
         if len(trade_flags) != 3:
-            if self.new_obs[stock]['25'] == '1':
+            if self.trade_direction_volume[stock]['25'] == '1':
                 df.loc[stock, 'cubid_time'] += 1
                 df.loc[stock, 'cubid_vol'] += vol
-            elif self.new_obs[stock]['25'] == '2':
+            elif self.trade_direction_volume[stock]['25'] == '2':
                 df.loc[stock, 'cuask_time'] += 1
                 df.loc[stock, 'cuask_vol'] += vol
         else:
