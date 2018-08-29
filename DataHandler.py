@@ -146,10 +146,10 @@ class LastTickHandler(DataHandler):
 
             vol = item[1] - eval(self.new_obs[stock]['3'])
             if len(item) != 3:
-                if self.new_obs[stock]['25'] == 1:
+                if self.new_obs[stock]['25'] == '1':
                     vol = -vol
             else:
-                if item[2] == 1:
+                if item[2] == '1':
                     vol = -vol
             df.loc[stock, self.name] = vol
 
@@ -224,7 +224,7 @@ class CumulativeTickHandler(DataHandler):
             return
         trade_flags = kwargs.get('trade_flags')
         for item in trade_flags:
-            print(item)
+            # print(item)
             try:
                 stock = item[0]
             except IndexError:
@@ -240,11 +240,11 @@ class CumulativeTickHandler(DataHandler):
                     self.ask_amount[stock] += vol
             else:
                 if item[2] == '1':
-                    print(stock, 'bid', vol)
+                    # print(stock, 'bid', vol)
                     self.bid_num[stock] += 1
                     self.bid_amount[stock] += vol
                 elif item[2] == '2':
-                    print(stock, 'ask', vol)
+                    # print(stock, 'ask', vol)
                     self.ask_num[stock] += 1
                     self.ask_amount[stock] += vol
 
