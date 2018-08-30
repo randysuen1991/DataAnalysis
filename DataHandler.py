@@ -154,37 +154,42 @@ class CumulativeTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name=None, **kwargs):
         super().__init__(start_time, end_time, instrument, name)
         self.trade_direction_volume = dict()
+        self.orderbook = None
 
     def __call__(self, **kwargs):
+        trade_flags = kwargs.get('trade_flags')
         time = kwargs.get('time')
         ob = kwargs.get('ob')
         df = kwargs.get('df')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                trade_flags = kwargs.get('trade_flags')
                 self._Record(ob, df, trade_flags=trade_flags)
                 self._Compute(ob)
             else:
                 self.recorded = True
-                if self.instrument == 'all':
-                    for key, value in ob.items():
-                        self.trade_direction_volume[key] = dict()
-                        self.trade_direction_volume[key]['25'] = value[key]['25']
-                        self.trade_direction_volume[key]['3'] = value[key]['3']
-                else:
-                    instrument_dict = ob[self.instrument]
-                    self.trade_direction_volume[self.instrument] = dict()
-                    self.trade_direction_volume[self.instrument]['25'] = instrument_dict['25']
-                    self.trade_direction_volume[self.instrument]['3'] = instrument_dict['3']
+                self.orderbook = ob
+                self._Initialize()
+                self._Record(ob, df, trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
-            trade_flags = kwargs.get('trade_flags')
             self.done = True
             self._Compute(ob)
             self._Record(ob, df, trade_flags=trade_flags)
             df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
             df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
             df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
+
+    def _Initialize(self):
+        if self.instrument == 'all':
+            for key, value in self.orderbook.items():
+                self.trade_direction_volume[key] = dict()
+                self.trade_direction_volume[key]['25'] = value['25']
+                self.trade_direction_volume[key]['3'] = value['3']
+        else:
+            instrument_dict = self.orderbook[self.instrument]
+            self.trade_direction_volume[self.instrument] = dict()
+            self.trade_direction_volume[self.instrument]['25'] = instrument_dict['25']
+            self.trade_direction_volume[self.instrument]['3'] = instrument_dict['3']
 
     def _Compute(self, ob, **kwargs):
         if self.instrument == 'all':
@@ -223,7 +228,7 @@ class CumulativeTickHandler(DataHandler):
 
 
 class IndexHandler(DataHandler):
-    def __init__(self, start_time, end_time, instrument, name=):
+    def __init__(self, start_time, end_time, instrument, name):
         super().__init__(start_time, end_time, instrument, name)
         self.start_index = None
 
