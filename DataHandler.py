@@ -163,18 +163,17 @@ class CumulativeTickHandler(DataHandler):
         df = kwargs.get('df')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                self._Record(ob, df, trade_flags=trade_flags)
-                self._Compute(ob)
+                self._Record(df=df, trade_flags=trade_flags)
+                self._Compute(trade_flags)
             else:
                 self.recorded = True
                 self.orderbook = ob
                 self._Initialize()
-                self._Record(ob, df, trade_flags=trade_flags)
+                self._Record(df=df, trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
             self.done = True
-            self._Compute(ob)
-            self._Record(ob, df, trade_flags=trade_flags)
+            self._Record(df, trade_flags=trade_flags)
             df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
             df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
             df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
@@ -191,40 +190,33 @@ class CumulativeTickHandler(DataHandler):
             self.trade_direction_volume[self.instrument]['25'] = instrument_dict['25']
             self.trade_direction_volume[self.instrument]['3'] = instrument_dict['3']
 
-    def _Compute(self, ob, **kwargs):
-        if self.instrument == 'all':
-            for key in self.trade_direction_volume.keys():
-                self.trade_direction_volume[key]['25'] = ob[key]['25']
-                self.trade_direction_volume[key]['3'] = ob[key]['3']
-        else:
-            for instrument in self.instrument:
-                self.trade_direction_volume[instrument]['25'] = ob[instrument]['25']
-                self.trade_direction_volume[instrument]['3'] = ob[instrument]['3']
+    def _Compute(self, trade_flags, **kwargs):
+        if len(trade_flags) > 1:
+            self.trade_direction_volume[trade_flags[0]]['3'] = trade_flags[1]
+            if len(trade_flags) == 3:
+                self.trade_direction_volume[trade_flags[0]]['25'] = trade_flags[2]
 
-    def _Record(self, ob, df, **kwargs):
+    def _Record(self, df, **kwargs):
         if len(self.trade_direction_volume.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
-        try:
+        if len(trade_flags) > 1:
             stock = trade_flags[0]
-        except IndexError:
-            return
-
-        vol = eval(trade_flags[1]) - eval(self.trade_direction_volume[stock]['3'])
-        if len(trade_flags) != 3:
-            if self.trade_direction_volume[stock]['25'] == '1':
-                df.loc[stock, 'cubid_time'] += 1
-                df.loc[stock, 'cubid_vol'] += vol
-            elif self.trade_direction_volume[stock]['25'] == '2':
-                df.loc[stock, 'cuask_time'] += 1
-                df.loc[stock, 'cuask_vol'] += vol
-        else:
-            if trade_flags[2] == '1':
-                df.loc[stock, 'cubid_time'] += 1
-                df.loc[stock, 'cubid_vol'] += vol
-            elif trade_flags[2] == '2':
-                df.loc[stock, 'cuask_time'] += 1
-                df.loc[stock, 'cuask_vol'] += vol
+            vol = eval(trade_flags[1]) - eval(self.trade_direction_volume[stock]['3'])
+            if len(trade_flags) == 2:
+                if self.trade_direction_volume[stock]['25'] == '2':
+                    df.loc[stock, 'cubid_time'] += 1
+                    df.loc[stock, 'cubid_vol'] += vol
+                elif self.trade_direction_volume[stock]['25'] == '1':
+                    df.loc[stock, 'cuask_time'] += 1
+                    df.loc[stock, 'cuask_vol'] += vol
+            else:
+                if trade_flags[2] == '2':
+                    df.loc[stock, 'cubid_time'] += 1
+                    df.loc[stock, 'cubid_vol'] += vol
+                elif trade_flags[2] == '1':
+                    df.loc[stock, 'cuask_time'] += 1
+                    df.loc[stock, 'cuask_vol'] += vol
 
 
 class IndexHandler(DataHandler):
