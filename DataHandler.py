@@ -13,7 +13,10 @@ class DataHandler:
         self.done = False
         self.name = name
 
-    def __call__(self, time, ob, df, **kwargs):
+    def __call__(self, **kwargs):
+        time = kwargs.get('time')
+        ob = kwargs.get('ob')
+        df = kwargs.get('df')
         if time >= self.start_time and not self.recorded:
             self.recorded = True
             self._Compute(ob)
@@ -90,64 +93,72 @@ class OBPressureHandler(DataHandler):
 class LastTickHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name):
         super().__init__(start_time, end_time, instrument, name)
-        self.new_obs = dict()
+        self.orderbook = None
+        self.last_info = dict()
+        self.second_to_last_info = dict()
+        self.last_no_volume = dict()
 
-    def __call__(self, time, ob, df, **kwargs):
+    def __call__(self, **kwargs):
+        time = kwargs.get('time')
+        ob = kwargs.get('ob')
+        df = kwargs.get('df')
+        trade_flags = kwargs.get('trade_flags')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                trade_flags = kwargs.get('trade_flags')
-                self._Record(ob, df, trade_flags=trade_flags)
-                self._Compute(ob)
+                self._Compute(trade_flags=trade_flags)
             else:
+                self.orderbook = ob
                 self.recorded = True
-                if self.instrument == 'all':
-                    for key, value in ob.items():
-                        self.new_obs[key] = copy.copy(value)
-                else:
-                    instrument_dict = ob[self.instrument]
-                    self.new_obs[self.instrument] = copy.copy(instrument_dict)
+                self._Initialize()
+                self._Compute(trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
-            trade_flags = kwargs.get('trade_flags')
             self.done = True
-            self._Record(ob, df, trade_flags=trade_flags)
-            self._Compute(ob)
+            self._Compute(trade_flags=trade_flags)
+            self._Record(df)
 
-    def _Compute(self, ob, **kwargs):
-        if self.instrument == 'all':
-            for key, value in self.new_obs.items():
-                if value != ob[key]:
-                    self.new_obs[key] = copy.copy(ob[key])
-        else:
-            instrument_dict = ob[self.instrument]
-            if instrument_dict != self.new_obs[self.instrument]:
-                self.new_obs[self.instrument] = copy.copy(ob[self.instrument])
+    def _Initialize(self):
+        for key, value in self.orderbook.items():
+            self.second_to_last_info[key] = dict()
+            self.last_info[key] = dict()
+            self.last_info[key]['3'] = self.orderbook[key]['3']
+            self.last_info[key]['25'] = self.orderbook[key]['25']
+            self.last_no_volume[key] = False
 
-    def _Record(self, ob, df, **kwargs):
-        if len(self.new_obs.keys()) == 0:
-            return
-        trade_flags = kwargs.get('trade_flags')
-        try:
-            stock = trade_flags[0]
-        except IndexError:
-            return
+    def _Compute(self, trade_flags, **kwargs):
+        if len(trade_flags) > 1:
+            self.second_to_last_info[trade_flags[0]] = copy.copy(self.last_info[trade_flags[0]])
+            self.last_no_volume[trade_flags[0]] = False
+            self.last_info[trade_flags[0]]['3'] = trade_flags[1]
+            if len(trade_flags) == 3:
+                self.last_info[trade_flags[0]]['25'] = trade_flags[2]
+            elif len(trade_flags) == 2:
+                self.last_info[trade_flags[0]]['25'] = self.second_to_last_info[trade_flags[0]]['25']
+        elif len(trade_flags) == 1:
+            self.last_no_volume[trade_flags[0]] = True
 
-        vol = eval(trade_flags[1]) - eval(self.new_obs[stock]['3'])
-        if len(trade_flags) != 3:
-            if self.new_obs[stock]['25'] == '1':
-                vol = -vol
-        else:
-            if trade_flags[2] == '1':
-                vol = -vol
-        df.loc[stock, self.name] = vol
+    def _Record(self, df):
+        for key, value in self.last_info.items():
+            if self.last_no_volume[key] is True:
+                df.loc[key, self.name] = 0
+            else:
+                vol = eval(self.last_info[key]['3']) - eval(self.second_to_last_info[key]['3'])
+                if self.last_info[key]['25'] == '1':
+                    df.loc[key, self.name] = vol
+                else:
+                    df.loc[key, self.name] = -vol
 
 
 class CumulativeTickHandler(DataHandler):
+
     def __init__(self, start_time, end_time, instrument, name=None, **kwargs):
         super().__init__(start_time, end_time, instrument, name)
         self.trade_direction_volume = dict()
 
-    def __call__(self, time, ob, df, **kwargs):
+    def __call__(self, **kwargs):
+        time = kwargs.get('time')
+        ob = kwargs.get('ob')
+        df = kwargs.get('df')
         if self.end_time > time >= self.start_time:
             if self.recorded:
                 trade_flags = kwargs.get('trade_flags')
@@ -210,3 +221,23 @@ class CumulativeTickHandler(DataHandler):
                 df.loc[stock, 'cuask_time'] += 1
                 df.loc[stock, 'cuask_vol'] += vol
 
+
+class IndexHandler(DataHandler):
+    def __init__(self, start_time, end_time, instrument, name=):
+        super().__init__(start_time, end_time, instrument, name)
+        self.start_index = None
+
+    def _Compute(self, ob):
+        self.start_index = ob[self.instrument]['1']
+
+    def _Record(self, ob, df):
+        df[self.instrument, self.name] = ob[self.instrument]['1'] - self.start_index
+
+class HandlerCollection:
+
+    def __init__(self, handler_list):
+        self.handelr_list = handler_list
+
+    def __call__(self, **kwargs):
+        for handler in self.handelr_list:
+            handler(**kwargs)
