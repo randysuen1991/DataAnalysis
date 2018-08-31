@@ -219,7 +219,7 @@ class CumulativeTickHandler(DataHandler):
                     df.loc[stock, 'cuask_vol'] += vol
 
 
-class IndexHandler(DataHandler):
+class IndexDifferenceHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name):
         super().__init__(start_time, end_time, instrument, name)
         self.start_index = None
@@ -230,8 +230,19 @@ class IndexHandler(DataHandler):
     def _Record(self, ob, df):
         df[self.instrument, self.name] = ob[self.instrument]['1'] - self.start_index
 
-class HandlerCollection:
 
+class IndexRecordHandler(DataHandler):
+    def __init__(self, start_time, end_time, instrument, name):
+        super().__init__(start_time, end_time, instrument, name)
+
+    def _Compute(self, ob):
+        pass
+
+    def _Record(self, ob, df):
+        df.loc[self.instrument, self.name] = eval(ob[self.instrument]['1'])
+
+
+class HandlerCollection:
     def __init__(self, handler_list):
         self.handelr_list = handler_list
 
