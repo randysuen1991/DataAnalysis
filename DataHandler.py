@@ -21,7 +21,7 @@ class DataHandler:
             self.recorded = True
             self._Compute(ob)
 
-        elif time >= self.end_time and not self.done:
+        elif time >= self.end_time and not self.done and self.recorded:
             self.done = True
             self._Record(ob, df)
 
@@ -142,7 +142,10 @@ class LastTickHandler(DataHandler):
             if self.last_no_volume[key] is True:
                 df.loc[key, self.name] = 0
             else:
-                vol = eval(self.last_info[key]['3']) - eval(self.second_to_last_info[key]['3'])
+                try:
+                    vol = eval(self.last_info[key]['3']) - eval(self.second_to_last_info[key]['3'])
+                except KeyError:
+                    vol = 0
                 if self.last_info[key]['25'] == '1':
                     df.loc[key, self.name] = vol
                 else:
@@ -225,10 +228,10 @@ class IndexDifferenceHandler(DataHandler):
         self.start_index = None
 
     def _Compute(self, ob):
-        self.start_index = ob[self.instrument]['1']
+        self.start_index = eval(ob[self.instrument]['1'])
 
     def _Record(self, ob, df):
-        df[self.instrument, self.name] = ob[self.instrument]['1'] - self.start_index
+        df.loc[self.instrument, self.name] = eval(ob[self.instrument]['1']) - self.start_index
 
 
 class IndexRecordHandler(DataHandler):
