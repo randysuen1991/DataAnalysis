@@ -8,10 +8,10 @@ class DataAnalysis:
     # input argument should be the data itself and the number which is going to be used to judge whether a datum is
     # a outlier or not.
     @staticmethod
-    def outlierhandler(x_train, num):
-        std = np.std(x_train)
-        mean = np.mean(x_train)
+    def outlierremoving(x_train, num_of_std, axis=0):
+        std = np.std(x_train, axis=axis)
+        mean = np.mean(x_train, axis=axis)
         centered_x_train = x_train - mean
         deviation = centered_x_train / std
-        index = np.where(deviation > num)
+        index = np.where(np.abs(deviation) > num_of_std)
         return index
