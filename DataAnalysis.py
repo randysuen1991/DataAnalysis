@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+import statsmodels.tsa.stattools.adfuller as adf
 
 class DataAnalysis:
 
@@ -15,3 +15,11 @@ class DataAnalysis:
         deviation = centered_x_train / std
         index = np.where(np.abs(deviation) > num_of_std)
         return index
+
+
+class TimeSeriesAnalysis:
+    # Augmented Dickey-Fuller test
+    @staticmethod
+    def adfuller(x_train, maxlag=None, regression='c', autolag='AIC', store=False, regresults=False):
+        return adf(x_train, maxlag, regression, autolag, store, regresults)
+
