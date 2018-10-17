@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools.adfuller as adf
 
-class DataAnalysis:
 
+class DataAnalysis:
     # This method points out the data which are outliers, determined by the standard deviation in the group of data.
     # input argument should be the data itself and the number which is going to be used to judge whether a datum is
     # a outlier or not.
