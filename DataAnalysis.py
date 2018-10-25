@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-import statsmodels.tsa.stattools.adfuller as adf
+from statsmodels.tsa.stattools import adfuller as adf
+from sklearn.covariance import EllipticEnvelope
 
 
 class DataAnalysis:
@@ -16,10 +17,14 @@ class DataAnalysis:
         index = np.where(np.abs(deviation) > num_of_std)
         return index
 
+    @staticmethod
+    def gaussian_outlier_detection(x_train):
+        pass
+
 
 class TimeSeriesAnalysis:
     # Augmented Dickey-Fuller test
     @staticmethod
-    def adfuller(x_train, maxlag=None, regression='c', autolag='AIC', store=False, regresults=False):
-        return adf(x_train, maxlag, regression, autolag, store, regresults)
+    def adfuller(x_train):
+        return adf(x_train)
 

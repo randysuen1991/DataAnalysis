@@ -1,5 +1,8 @@
-import scipy
+from scipy.stats import normaltest
+
 
 class HypothesisTesting:
-    pass
+    @staticmethod
+    def normality_test(x_test):
+        return normaltest(x_test)
 
