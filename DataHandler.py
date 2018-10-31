@@ -19,16 +19,16 @@ class DataHandler:
         df = kwargs.get('df')
         if time >= self.start_time and not self.recorded:
             self.recorded = True
-            self._Compute(ob)
+            self._compute(ob)
 
         elif time >= self.end_time and not self.done and self.recorded:
             self.done = True
-            self._Record(ob, df)
+            self._record(ob, df)
 
-    def _Compute(self, ob):
+    def _compute(self, ob):
         raise NotImplementedError
 
-    def _Record(self, ob, df):
+    def _record(self, ob, df):
         raise NotImplementedError
 
 
@@ -37,7 +37,7 @@ class MidPriceHandler(DataHandler):
         super().__init__(start_time, end_time, instrument, name)
         self.mid_price_start = dict()
 
-    def _Compute(self, ob):
+    def _compute(self, ob):
         if self.instrument == 'all':
             for key, value in ob.items():
                 self.mid_price_start[key] = (eval(value['14']) + eval(value['4'])) / 2
@@ -45,7 +45,7 @@ class MidPriceHandler(DataHandler):
             self.mid_price_start[self.instrument] = (eval(ob[self.instrument]['14']) + eval(ob[self.instrument]['4']))\
                                                     / 2
 
-    def _Record(self, ob, df):
+    def _record(self, ob, df):
         if self.instrument == 'all':
             for key, value in ob.items():
                 mid_price = (eval(value['14']) + eval(value['4'])) / 2
@@ -53,7 +53,7 @@ class MidPriceHandler(DataHandler):
         else:
             mid_price = (eval(ob[self.instrument]['14']) + eval(ob[self.instrument]['4'])) / 2
             df.loc[self.instrument, self.name] = (mid_price - self.mid_price_start[self.instrument]) / \
-                                                 self.mid_price_start[self.instrument]
+                                                  self.mid_price_start[self.instrument]
 
 
 class OBPressureHandler(DataHandler):
@@ -65,10 +65,10 @@ class OBPressureHandler(DataHandler):
         super().__init__(start_time, end_time, instrument, name)
         self.depth = depth
 
-    def _Compute(self, ob):
+    def _compute(self, ob):
         pass
 
-    def _Record(self, ob, df):
+    def _record(self, ob, df):
         if self.instrument == 'all':
             for key, value in ob.items():
                 bid_amount = 0
@@ -105,19 +105,19 @@ class LastTickHandler(DataHandler):
         trade_flags = kwargs.get('trade_flags')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                self._Compute(trade_flags=trade_flags)
+                self._compute(trade_flags=trade_flags)
             else:
                 self.orderbook = ob
                 self.recorded = True
-                self._Initialize()
-                self._Compute(trade_flags=trade_flags)
+                self._initialize()
+                self._compute(trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
             self.done = True
-            self._Compute(trade_flags=trade_flags)
-            self._Record(df)
+            self._compute(trade_flags=trade_flags)
+            self._record(df)
 
-    def _Initialize(self):
+    def _initialize(self):
         for key, value in self.orderbook.items():
             self.second_to_last_info[key] = dict()
             self.last_info[key] = dict()
@@ -125,7 +125,7 @@ class LastTickHandler(DataHandler):
             self.last_info[key]['25'] = self.orderbook[key]['25']
             self.last_no_volume[key] = False
 
-    def _Compute(self, trade_flags, **kwargs):
+    def _compute(self, trade_flags, **kwargs):
         if len(trade_flags) > 1:
             self.second_to_last_info[trade_flags[0]] = copy.copy(self.last_info[trade_flags[0]])
             self.last_no_volume[trade_flags[0]] = False
@@ -137,7 +137,7 @@ class LastTickHandler(DataHandler):
         elif len(trade_flags) == 1:
             self.last_no_volume[trade_flags[0]] = True
 
-    def _Record(self, df):
+    def _record(self, df):
         for key, value in self.last_info.items():
             if self.last_no_volume[key] is True:
                 df.loc[key, self.name] = 0
@@ -166,22 +166,22 @@ class CumulativeTickHandler(DataHandler):
         df = kwargs.get('df')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                self._Record(df=df, trade_flags=trade_flags)
-                self._Compute(trade_flags)
+                self._record(df=df, trade_flags=trade_flags)
+                self._compute(trade_flags)
             else:
                 self.recorded = True
                 self.orderbook = ob
-                self._Initialize()
-                self._Record(df=df, trade_flags=trade_flags)
+                self._initialize()
+                self._record(df=df, trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
             self.done = True
-            self._Record(df, trade_flags=trade_flags)
+            self._record(df, trade_flags=trade_flags)
             df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
             df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
             df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
 
-    def _Initialize(self):
+    def _initialize(self):
         if self.instrument == 'all':
             for key, value in self.orderbook.items():
                 self.trade_direction_volume[key] = dict()
@@ -193,13 +193,13 @@ class CumulativeTickHandler(DataHandler):
             self.trade_direction_volume[self.instrument]['25'] = instrument_dict['25']
             self.trade_direction_volume[self.instrument]['3'] = instrument_dict['3']
 
-    def _Compute(self, trade_flags, **kwargs):
+    def _compute(self, trade_flags, **kwargs):
         if len(trade_flags) > 1:
             self.trade_direction_volume[trade_flags[0]]['3'] = trade_flags[1]
             if len(trade_flags) == 3:
                 self.trade_direction_volume[trade_flags[0]]['25'] = trade_flags[2]
 
-    def _Record(self, df, **kwargs):
+    def _record(self, df, **kwargs):
         if len(self.trade_direction_volume.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
@@ -227,10 +227,10 @@ class IndexDifferenceHandler(DataHandler):
         super().__init__(start_time, end_time, instrument, name)
         self.start_index = None
 
-    def _Compute(self, ob):
+    def _compute(self, ob):
         self.start_index = eval(ob[self.instrument]['1'])
 
-    def _Record(self, ob, df):
+    def _record(self, ob, df):
         df.loc[self.instrument, self.name] = eval(ob[self.instrument]['1']) - self.start_index
 
 
@@ -238,10 +238,10 @@ class IndexRecordHandler(DataHandler):
     def __init__(self, start_time, end_time, instrument, name):
         super().__init__(start_time, end_time, instrument, name)
 
-    def _Compute(self, ob):
+    def _compute(self, ob):
         pass
 
-    def _Record(self, ob, df):
+    def _record(self, ob, df):
         df.loc[self.instrument, self.name] = eval(ob[self.instrument]['1'])
 
 
