@@ -166,7 +166,7 @@ class CumulativeTickHandler(DataHandler):
         ob = kwargs.get('ob')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                self._record(df=df, trade_flags=trade_flags)
+                self._record(trade_flags=trade_flags)
                 self._compute(trade_flags)
             else:
                 self.recorded = True
@@ -178,9 +178,20 @@ class CumulativeTickHandler(DataHandler):
             df = kwargs.get('df')
             self.done = True
             self._record(trade_flags=trade_flags)
-            df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
-            df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
-            df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
+
+            total = 'total_'
+            for time in self.start_time + self.end_time:
+                total += time
+            vol_diff = 'vol_diff_'
+            for time in self.start_time + self.end_time:
+                vol_diff += time
+            time_diff = 'time_diff_'
+            for time in self.start_time + self.end_time:
+                time_diff += time
+
+            df.loc[:, total] = self.df.loc[:, 'cuask_vol'] + self.df.loc[:, 'cubid_vol']
+            df.loc[:, vol_diff] = self.df.loc[:, 'cuask_vol'] - self.df.loc[:, 'cubid_vol']
+            df.loc[:, time_diff] = self.df.loc[:, 'cuask_time'] - self.df.loc[:, 'cubid_time']
 
     def _initialize(self):
         if self.instrument == 'all':
