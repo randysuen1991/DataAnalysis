@@ -158,12 +158,12 @@ class CumulativeTickHandler(DataHandler):
         super().__init__(start_time, end_time, instrument, name)
         self.trade_direction_volume = dict()
         self.orderbook = None
+        self.df = pd.DataFrame(columns=['ask_vol', 'bid_vol'])
 
     def __call__(self, **kwargs):
         trade_flags = kwargs.get('trade_flags')
         time = kwargs.get('time')
         ob = kwargs.get('ob')
-        df = kwargs.get('df')
         if self.end_time > time >= self.start_time:
             if self.recorded:
                 self._record(df=df, trade_flags=trade_flags)
@@ -172,11 +172,12 @@ class CumulativeTickHandler(DataHandler):
                 self.recorded = True
                 self.orderbook = ob
                 self._initialize()
-                self._record(df=df, trade_flags=trade_flags)
+                self._record(trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
+            df = kwargs.get('df')
             self.done = True
-            self._record(df, trade_flags=trade_flags)
+            self._record(trade_flags=trade_flags)
             df.loc[:, 'total_vol'] = df.loc[:, 'cubid_vol'] + df.loc[:, 'cuask_vol']
             df.loc[:, 'vol_diff'] = df.loc[:, 'cuask_vol'] - df.loc[:, 'cubid_vol']
             df.loc[:, 'time_diff'] = df.loc[:, 'cuask_time'] - df.loc[:, 'cubid_time']
@@ -199,7 +200,7 @@ class CumulativeTickHandler(DataHandler):
             if len(trade_flags) == 3:
                 self.trade_direction_volume[trade_flags[0]]['25'] = trade_flags[2]
 
-    def _record(self, df, **kwargs):
+    def _record(self, **kwargs):
         if len(self.trade_direction_volume.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
@@ -208,18 +209,26 @@ class CumulativeTickHandler(DataHandler):
             vol = eval(trade_flags[1]) - eval(self.trade_direction_volume[stock]['3'])
             if len(trade_flags) == 2:
                 if self.trade_direction_volume[stock]['25'] == '2':
-                    df.loc[stock, 'cubid_time'] += 1
-                    df.loc[stock, 'cubid_vol'] += vol
+                    self.df.loc[stock, 'cubid_time'] += 1
+                    self.df.loc[stock, 'cubid_vol'] += vol
+                    # df.loc[stock, 'cubid_time'] += 1
+                    # df.loc[stock, 'cubid_vol'] += vol
                 elif self.trade_direction_volume[stock]['25'] == '1':
-                    df.loc[stock, 'cuask_time'] += 1
-                    df.loc[stock, 'cuask_vol'] += vol
+                    self.df.loc[stock, 'cuask_time'] += 1
+                    self.df.loc[stock, 'cubid_vol'] += vol
+                    # df.loc[stock, 'cuask_time'] += 1
+                    # df.loc[stock, 'cuask_vol'] += vol
             else:
                 if trade_flags[2] == '2':
-                    df.loc[stock, 'cubid_time'] += 1
-                    df.loc[stock, 'cubid_vol'] += vol
+                    self.df.loc[stock, 'cubid_time'] += 1
+                    self.df.loc[stock, 'cubid_vol'] += vol
+                    # df.loc[stock, 'cubid_time'] += 1
+                    # df.loc[stock, 'cubid_vol'] += vol
                 elif trade_flags[2] == '1':
-                    df.loc[stock, 'cuask_time'] += 1
-                    df.loc[stock, 'cuask_vol'] += vol
+                    self.df.loc[stock, 'cuask_time'] += 1
+                    self.df.loc[stock, 'cuask_vol'] += vol
+                    # df.loc[stock, 'cuask_time'] += 1
+                    # df.loc[stock, 'cuask_vol'] += vol
 
 
 class IndexDifferenceHandler(DataHandler):
