@@ -154,7 +154,7 @@ class LastTickHandler(DataHandler):
 
 class CumulativeTickHandler(DataHandler):
 
-    def __init__(self, start_time, end_time, instrument, name=None, **kwargs):
+    def __init__(self, start_time, end_time, instrument, name=None):
         super().__init__(start_time, end_time, instrument, name)
         self.trade_direction_volume = dict()
         self.orderbook = None
@@ -222,24 +222,16 @@ class CumulativeTickHandler(DataHandler):
                 if self.trade_direction_volume[stock]['25'] == '2':
                     self.df.loc[stock, 'cubid_time'] += 1
                     self.df.loc[stock, 'cubid_vol'] += vol
-                    # df.loc[stock, 'cubid_time'] += 1
-                    # df.loc[stock, 'cubid_vol'] += vol
                 elif self.trade_direction_volume[stock]['25'] == '1':
                     self.df.loc[stock, 'cuask_time'] += 1
                     self.df.loc[stock, 'cubid_vol'] += vol
-                    # df.loc[stock, 'cuask_time'] += 1
-                    # df.loc[stock, 'cuask_vol'] += vol
             else:
                 if trade_flags[2] == '2':
                     self.df.loc[stock, 'cubid_time'] += 1
                     self.df.loc[stock, 'cubid_vol'] += vol
-                    # df.loc[stock, 'cubid_time'] += 1
-                    # df.loc[stock, 'cubid_vol'] += vol
                 elif trade_flags[2] == '1':
                     self.df.loc[stock, 'cuask_time'] += 1
                     self.df.loc[stock, 'cuask_vol'] += vol
-                    # df.loc[stock, 'cuask_time'] += 1
-                    # df.loc[stock, 'cuask_vol'] += vol
 
 
 class IndexDifferenceHandler(DataHandler):
