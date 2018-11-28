@@ -154,44 +154,41 @@ class LastTickHandler(DataHandler):
 
 class CumulativeTickHandler(DataHandler):
 
-    def __init__(self, start_time, end_time, instrument, name=None):
+    def __init__(self, start_time, end_time, instrument, stocks, name=None):
         super().__init__(start_time, end_time, instrument, name)
         self.trade_direction_volume = dict()
         self.orderbook = None
-        self.df = pd.DataFrame(columns=['ask_vol', 'bid_vol'])
+        self.df = pd.DataFrame(columns=['cuask_vol', 'cubid_vol', 'cuask_time', 'cubid_time'], index=stocks)
+        self.df = self.df.fillna(0)
+        self.total = 'total_'
+        for time in self.start_time + self.end_time:
+            self.total += time
+        self.vol_diff = 'vol_diff_'
+        for time in self.start_time + self.end_time:
+            self.vol_diff += time
+        self.time_diff = 'time_diff_'
+        for time in self.start_time + self.end_time:
+            self.time_diff += time
 
     def __call__(self, **kwargs):
         trade_flags = kwargs.get('trade_flags')
         time = kwargs.get('time')
         ob = kwargs.get('ob')
+        df = kwargs.get('df')
         if self.end_time > time >= self.start_time:
             if self.recorded:
-                self._record(trade_flags=trade_flags)
+                self._record(df=df, trade_flags=trade_flags)
                 self._compute(trade_flags)
             else:
                 self.recorded = True
                 self.orderbook = ob
                 self._initialize()
-                self._record(trade_flags=trade_flags)
+                self._record(df=df, trade_flags=trade_flags)
 
         elif time >= self.end_time and not self.done:
             df = kwargs.get('df')
             self.done = True
-            self._record(trade_flags=trade_flags)
-
-            total = 'total_'
-            for time in self.start_time + self.end_time:
-                total += time
-            vol_diff = 'vol_diff_'
-            for time in self.start_time + self.end_time:
-                vol_diff += time
-            time_diff = 'time_diff_'
-            for time in self.start_time + self.end_time:
-                time_diff += time
-
-            df.loc[:, total] = self.df.loc[:, 'cuask_vol'] + self.df.loc[:, 'cubid_vol']
-            df.loc[:, vol_diff] = self.df.loc[:, 'cuask_vol'] - self.df.loc[:, 'cubid_vol']
-            df.loc[:, time_diff] = self.df.loc[:, 'cuask_time'] - self.df.loc[:, 'cubid_time']
+            self._record(df=df, trade_flags=trade_flags)
 
     def _initialize(self):
         if self.instrument == 'all':
@@ -215,6 +212,7 @@ class CumulativeTickHandler(DataHandler):
         if len(self.trade_direction_volume.keys()) == 0:
             return
         trade_flags = kwargs.get('trade_flags')
+        df = kwargs.get('df')
         if len(trade_flags) > 1:
             stock = trade_flags[0]
             vol = eval(trade_flags[1]) - eval(self.trade_direction_volume[stock]['3'])
@@ -224,7 +222,7 @@ class CumulativeTickHandler(DataHandler):
                     self.df.loc[stock, 'cubid_vol'] += vol
                 elif self.trade_direction_volume[stock]['25'] == '1':
                     self.df.loc[stock, 'cuask_time'] += 1
-                    self.df.loc[stock, 'cubid_vol'] += vol
+                    self.df.loc[stock, 'cuask_vol'] += vol
             else:
                 if trade_flags[2] == '2':
                     self.df.loc[stock, 'cubid_time'] += 1
@@ -232,6 +230,10 @@ class CumulativeTickHandler(DataHandler):
                 elif trade_flags[2] == '1':
                     self.df.loc[stock, 'cuask_time'] += 1
                     self.df.loc[stock, 'cuask_vol'] += vol
+
+            df.loc[:, self.total] = self.df.loc[:, 'cuask_vol'] + self.df.loc[:, 'cubid_vol']
+            df.loc[:, self.vol_diff] = self.df.loc[:, 'cuask_vol'] - self.df.loc[:, 'cubid_vol']
+            df.loc[:, self.time_diff] = self.df.loc[:, 'cuask_time'] - self.df.loc[:, 'cubid_time']
 
 
 class IndexDifferenceHandler(DataHandler):
